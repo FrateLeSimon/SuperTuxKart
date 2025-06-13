@@ -19,45 +19,10 @@ num_hats = joystick.get_numhats()
 
 print(f"Axes: {num_axes}, Boutons: {num_buttons}, Hats: {num_hats}")
 
-# Préparation du dossier de session
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-dataset_dir = f"dataset/session_{timestamp}"
-images_dir = os.path.join(dataset_dir, "images")
-os.makedirs(images_dir, exist_ok=True)
-labels_path = os.path.join(dataset_dir, "labels.csv")
-labels_file = open(labels_path, "w")
-
-# Écriture de l'en-tête CSV
-header = ["image"]
-header += [f"axis_{i}" for i in range(num_axes)]
-header += [f"button_{i}" for i in range(num_buttons)]
-header += [f"hat_{i}_x" for i in range(num_hats)]
-header += [f"hat_{i}_y" for i in range(num_hats)]
-labels_file.write(",".join(header) + "\n")
-
 print("Appuie sur la flèche HAUT (d-pad up) pour démarrer la capture.")
 print("Appuie sur la flèche BAS (d-pad down) pour arrêter la capture.")
 
 window_title = "SuperTuxKart"
-try:
-    game_window = next(w for w in gw.getWindowsWithTitle(window_title) if w.visible and w.title == window_title)
-    print(f"Fenêtre trouvée : {game_window.title}")
-
-    # Mettre la fenêtre au premier plan
-    game_window.activate()
-    game_window.restore()
-    time.sleep(0.2)
-
-    # Définir les coordonnées fixes pour la fenêtre
-    fixed_left = 600  # Position fixe à droite
-    fixed_top = 0   # Position fixe légèrement en haut
-
-    # Déplacer la fenêtre au point fixe
-    game_window.moveTo(fixed_left, fixed_top)
-    print(f"Fenêtre déplacée à ({fixed_left},{fixed_top})")
-
-except StopIteration:
-    raise RuntimeError(f"Aucune fenêtre visible avec le titre exact '{window_title}' n'a été trouvée.")
 
 capturing = False
 frame_count = 0
@@ -70,6 +35,40 @@ try:
         dpad_x, dpad_y = joystick.get_hat(0) if num_hats > 0 else (0, 0)
 
         if not capturing and dpad_y == 1:
+            try:
+                game_window = next(w for w in gw.getWindowsWithTitle(window_title) if w.visible and w.title == window_title)
+                print(f"Fenêtre trouvée : {game_window.title}")
+
+                # Mettre la fenêtre au premier plan
+                game_window.activate()
+                game_window.restore()
+                time.sleep(0.2)
+
+                # Définir les coordonnées fixes pour la fenêtre
+                fixed_left = 600  # Position fixe à droite
+                fixed_top = 0   # Position fixe légèrement en haut
+
+                # Déplacer la fenêtre au point fixe
+                game_window.moveTo(fixed_left, fixed_top)
+                print(f"Fenêtre déplacée à ({fixed_left},{fixed_top})")
+
+            except StopIteration:
+                raise RuntimeError(f"Aucune fenêtre visible avec le titre exact '{window_title}' n'a été trouvée.")
+            # Préparation du dossier de session
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dataset_dir = f"dataset/session_{timestamp}"
+            images_dir = os.path.join(dataset_dir, "images")
+            os.makedirs(images_dir, exist_ok=True)
+            labels_path = os.path.join(dataset_dir, "labels.csv")
+            labels_file = open(labels_path, "w")
+
+            # Écriture de l'en-tête CSV
+            header = ["image"]
+            header += [f"axis_{i}" for i in range(num_axes)]
+            header += [f"button_{i}" for i in range(num_buttons)]
+            header += [f"hat_{i}_x" for i in range(num_hats)]
+            header += [f"hat_{i}_y" for i in range(num_hats)]
+            labels_file.write(",".join(header) + "\n")
             print("Capture démarrée !")
             capturing = True
             frame_count = 0
