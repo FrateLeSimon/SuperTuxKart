@@ -10,19 +10,33 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 
-# Dataset personnalisé
-class ImageCSVRegressionDataset(Dataset):
-    def __init__(self, csv_file, images_dir, img_size=(224, 224), label_scaler=None):
-        self.data = pd.read_csv(csv_file)
-        self.images_dir = images_dir
+# Dataset multi-session
+class MultiSessionImageCSVRegressionDataset(Dataset):
+    def __init__(self, dataset_root, img_size=(224, 224), label_scaler=None):
+        self.samples = []  # Liste de tuples (img_path, label)
+        all_labels = []
         self.img_size = img_size
         self.transform = transforms.Compose([
             transforms.Resize(self.img_size),
             transforms.ToTensor(),
             transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
         ])
-        self.image_names = self.data.iloc[:, 0].values
-        self.labels = self.data.iloc[:, 1:].values.astype(np.float32)
+        # Parcours tous les sous-dossiers
+        for session in os.listdir(dataset_root):
+            session_path = os.path.join(dataset_root, session)
+            if not os.path.isdir(session_path):
+                continue
+            csv_path = os.path.join(session_path, "labels.csv")
+            images_dir = os.path.join(session_path, "images")
+            if not (os.path.isfile(csv_path) and os.path.isdir(images_dir)):
+                continue
+            df = pd.read_csv(csv_path)
+            for i, row in df.iterrows():
+                img_path = os.path.join(images_dir, row.iloc[0])
+                if os.path.isfile(img_path):
+                    self.samples.append((img_path, row.iloc[1:].values.astype(np.float32)))
+                    all_labels.append(row.iloc[1:].values.astype(np.float32))
+        self.labels = np.array(all_labels, dtype=np.float32)
         if label_scaler is None:
             self.label_scaler = MinMaxScaler()
             self.labels = self.label_scaler.fit_transform(self.labels)
@@ -31,10 +45,10 @@ class ImageCSVRegressionDataset(Dataset):
             self.labels = self.label_scaler.transform(self.labels)
 
     def __len__(self):
-        return len(self.image_names)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        img_path = os.path.join(self.images_dir, self.image_names[idx])
+        img_path, _ = self.samples[idx]
         image = Image.open(img_path).convert('RGB')
         image = self.transform(image)
         label = torch.tensor(self.labels[idx], dtype=torch.float32)
@@ -58,9 +72,8 @@ def get_model(output_dim):
         )
 
 def main():
-    parser = argparse.ArgumentParser(description='Train PyTorch model on image dataset with CSV labels')
-    parser.add_argument('--csv', type=str, required=True, help='Path to CSV file')
-    parser.add_argument('--images', type=str, required=True, help='Path to images directory')
+    parser = argparse.ArgumentParser(description='Train PyTorch model on all sessions in a dataset folder')
+    parser.add_argument('--dataset', type=str, default='dataset', help='Path to dataset root folder')
     parser.add_argument('--epochs', type=int, default=20)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--lr', type=float, default=1e-3)
@@ -69,7 +82,7 @@ def main():
     args = parser.parse_args()
 
     # Dataset et DataLoader
-    dataset = ImageCSVRegressionDataset(args.csv, args.images, tuple(args.img_size))
+    dataset = MultiSessionImageCSVRegressionDataset(args.dataset, tuple(args.img_size))
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
