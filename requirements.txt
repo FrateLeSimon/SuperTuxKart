@@ -11,3 +11,4 @@ torchvision
 pandas
 scikit-learn
 keyboard
+matplotlib
