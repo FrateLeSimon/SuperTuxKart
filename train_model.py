@@ -39,6 +39,9 @@ class ImageCSVRegressionDataset(Dataset):
                         all_labels.append(row.iloc[1:].values.astype(np.float32))
                 self.sessions_used.append(session_name)
         self.labels = np.array(all_labels, dtype=np.float32)
+        if len(self.labels) == 0:
+            print("Aucune nouvelle donnée à entraîner. Arrêt.")
+            return
         if label_scaler is None:
             self.label_scaler = MinMaxScaler()
             self.labels = self.label_scaler.fit_transform(self.labels)
@@ -89,7 +92,7 @@ def main():
         used_sessions = set()
 
     dataset = ImageCSVRegressionDataset(args.dataset, tuple(args.img_size), used_sessions=used_sessions)
-    if len(dataset) == 0:
+    if not hasattr(dataset, 'labels') or len(dataset) == 0:
         print("Aucune nouvelle donnée à entraîner. Arrêt.")
         return
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
