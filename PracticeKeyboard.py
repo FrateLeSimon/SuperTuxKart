@@ -9,12 +9,13 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import ttk
 from threading import Thread
+import matplotlib.pyplot as plt  # Importer matplotlib
 
 # Configuration globale
 window_title = "SuperTuxKart"
 capturing = False
 start_time = None
-tracked_keys = ["s", "d", "space", "shift", "q", "z", "c", "v", "p", "m"]
+tracked_keys = ["s", "d", "space", "shift", "q", "z", "c", "v"]
 
 # Variables pour l'interface
 pressed_keys = []
@@ -57,9 +58,14 @@ def stop_capture_gui():
     if capturing:
         capturing = False
 
+# Listes pour stocker les timestamps
+acceleration_data = []  # Pour la touche "Z"
+braking_data = []       # Pour la touche "S"
+drifting_data = []      # Pour la touche "Shift"
+
 # Fonction principale de capture
 def start_capture():
-    global capturing, start_time, pressed_keys
+    global capturing, start_time, pressed_keys, acceleration_data, braking_data, drifting_data
 
     try:
         while True:
@@ -103,6 +109,18 @@ def start_capture():
                     pressed_keys = [k for k in tracked_keys if keyboard.is_pressed(k)]
                     row += [str(int(k in pressed_keys)) for k in tracked_keys]
 
+                    # Si la touche "Z" (accélération) est pressée, enregistrer le timestamp
+                    if "z" in pressed_keys:
+                        acceleration_data.append(time.time() - start_time)
+
+                    # Si la touche "S" (freinage) est pressée, enregistrer le timestamp
+                    if "s" in pressed_keys:
+                        braking_data.append(time.time() - start_time)
+
+                    # Si la touche "Shift" (dérapage) est pressée, enregistrer le timestamp
+                    if "shift" in pressed_keys:
+                        drifting_data.append(time.time() - start_time)
+
                     labels_file.write(",".join(row) + "\n")
                     labels_file.flush()
 
@@ -115,6 +133,40 @@ def start_capture():
     finally:
         if 'labels_file' in locals():
             labels_file.close()
+
+# Fonction pour afficher le graphique
+def show_acceleration_graph():
+    if not (acceleration_data or braking_data or drifting_data):
+        print("Aucune donnée enregistrée.")
+        return
+
+    plt.figure(figsize=(10, 5))
+
+    # Graphique pour l'accélération
+    if acceleration_data:
+        times_acceleration = [t for t in acceleration_data]
+        values_acceleration = [1] * len(acceleration_data)
+        plt.scatter(times_acceleration, values_acceleration, color="blue", label="Accélération (Z)")
+
+    # Graphique pour le freinage
+    if braking_data:
+        times_braking = [t for t in braking_data]
+        values_braking = [2] * len(braking_data)
+        plt.scatter(times_braking, values_braking, color="red", label="Freinage (S)")
+
+    # Graphique pour le dérapage
+    if drifting_data:
+        times_drifting = [t for t in drifting_data]
+        values_drifting = [3] * len(drifting_data)
+        plt.scatter(times_drifting, values_drifting, color="green", label="Dérapage (Shift)")
+
+    # Configuration du graphique
+    plt.xlabel("Temps écoulé (secondes)")
+    plt.ylabel("Actions (1 = Accélération, 2 = Freinage, 3 = Dérapage)")
+    plt.title("Graphique des actions (Accélération, Freinage, Dérapage)")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
 # Création de l'interface Tkinter
 root = tk.Tk()
@@ -156,6 +208,10 @@ start_button.grid(row=0, column=0, padx=10)
 stop_button = ttk.Button(button_frame, text="Arrêter", command=stop_capture_gui, state="disabled")
 stop_button.grid(row=0, column=1, padx=10)
 
+# Bouton pour afficher le graphique
+graph_button = ttk.Button(button_frame, text="Afficher le graphique", command=show_acceleration_graph)
+graph_button.grid(row=0, column=2, padx=10)
+
 # Instructions sur les touches avec tableau
 instructions_frame = tk.Frame(root, bg="#34495e", padx=10, pady=10)
 instructions_frame.pack(pady=20, fill="both", expand=True)
@@ -173,8 +229,6 @@ data = [
     ("Nitro", "Espace"),
     ("Dérapage", "Shift gauche"),
     ("Regarder en arrière", "V"),
-    ("Démarrer l'enregistrement", "P"),
-    ("Arrêter l'enregistrement", "M"),
 ]
 
 table = ttk.Treeview(instructions_frame, columns=columns, show="headings", height=10)
