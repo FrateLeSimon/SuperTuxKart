@@ -14,12 +14,12 @@ frame_count = 0
 # Liste des touches à suivre (ajuste selon ton jeu)
 tracked_keys = ["w", "a", "s", "d", "space", "shift"]
 
-print("Appuie sur HOME pour démarrer la capture.")
-print("Appuie sur END pour arrêter la capture.")
+print("Appuie sur P pour démarrer la capture.")
+print("Appuie sur M pour arrêter la capture.")
 
 try:
     while True:
-        if not capturing and keyboard.is_pressed("home"):
+        if not capturing and keyboard.is_pressed("p"):
             try:
                 game_window = next(w for w in gw.getWindowsWithTitle(window_title) if w.visible and w.title == window_title)
                 print(f"Fenêtre trouvée : {game_window.title}")
@@ -37,7 +37,7 @@ try:
 
             # Préparation du dossier de session
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dataset_dir = f"dataset/session_{timestamp}"
+            dataset_dir = f"dataset/keyboard_session_{timestamp}"
             images_dir = os.path.join(dataset_dir, "images")
             os.makedirs(images_dir, exist_ok=True)
             labels_path = os.path.join(dataset_dir, "labels.csv")
@@ -52,7 +52,7 @@ try:
             frame_count = 0
             time.sleep(0.5)
 
-        if capturing and keyboard.is_pressed("end"):
+        if capturing and keyboard.is_pressed("m"):
             print("Capture arrêtée !")
             capturing = False
             time.sleep(0.5)
