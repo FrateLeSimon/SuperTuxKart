@@ -21,3 +21,11 @@ if (Test-Path -Path ".\requirements.txt") {
 } else {
     Write-Output "Fichier requirements.txt introuvable, installe pyautogui et pygetwindow manuellement."
 }
+
+# Ajoute un .gitignore dans dataset
+$datasetGitignore = "# Ignore all files in dataset`n*`n# But not these!`n!.gitignore`n"
+Set-Content -Path ".\dataset\.gitignore" -Value $datasetGitignore
+
+# Ajoute un .gitignore dans venv
+$venvGitignore = "# Ignore everything in venv (virtual environment)`n*`n# But not these!`n!.gitignore`n"
+Set-Content -Path ".\venv\.gitignore" -Value $venvGitignore
