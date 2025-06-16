@@ -14,7 +14,7 @@ from threading import Thread
 window_title = "SuperTuxKart"
 capturing = False
 start_time = None
-tracked_keys = ["w", "a", "s", "d", "space", "shift", "q", "z", "c", "v", "p", "m"]
+tracked_keys = ["s", "d", "space", "shift", "q", "z", "c", "v", "p", "m"]
 
 # Variables pour l'interface
 pressed_keys = []
