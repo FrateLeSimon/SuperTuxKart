@@ -128,6 +128,9 @@ def start_capture():
 
                 labels_file.close()
 
+                # Appeler la fonction pour afficher et enregistrer le graphique
+                show_acceleration_graph(dataset_dir)
+
     except KeyboardInterrupt:
         print("Interruption clavier détectée.")
     finally:
@@ -135,7 +138,7 @@ def start_capture():
             labels_file.close()
 
 # Fonction pour afficher le graphique
-def show_acceleration_graph():
+def show_acceleration_graph(session_dir):
     if not (acceleration_data or braking_data or drifting_data):
         print("Aucune donnée enregistrée.")
         return
@@ -166,6 +169,13 @@ def show_acceleration_graph():
     plt.title("Graphique des actions (Accélération, Freinage, Dérapage)")
     plt.legend()
     plt.grid(True)
+
+    # Enregistrer le graphique dans le dossier de la session
+    graph_path = os.path.join(session_dir, "graph.png")
+    plt.savefig(graph_path)
+    print(f"Graphique enregistré : {graph_path}")
+
+    # Afficher le graphique
     plt.show()
 
 # Création de l'interface Tkinter
