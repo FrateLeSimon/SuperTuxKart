@@ -1,0 +1,5 @@
+# Ignore all files in dataset
+*
+# But not these!
+!.gitignore
+

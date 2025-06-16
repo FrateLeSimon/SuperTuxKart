@@ -5,3 +5,10 @@ pygame
 pygetwindow
 inputs
 pillow
+mss
+torch
+torchvision
+pandas
+scikit-learn
+keyboard
+matplotlib
