@@ -1,25 +1,21 @@
-# Supprime l'ancien venv s'il existe
-if (Test-Path -Path ".\venv") {
-    Remove-Item -Recurse -Force ".\venv"
-    Write-Output "Ancien venv supprimé."
+# Crée un nouveau venv uniquement s'il n'existe pas
+if (!(Test-Path -Path ".\venv")) {
+    python -m venv venv
+    Write-Output "Nouveau venv créé."
 } else {
-    Write-Output "Aucun venv trouvé, création du nouveau."
+    Write-Output "venv déjà présent, activation..."
 }
-
-# Crée un nouveau venv
-python -m venv venv
-Write-Output "Nouveau venv créé."
 
 # Active le venv
 & .\venv\Scripts\Activate.ps1
 
-# Installe les dépendances depuis requirements.txt
+# Installe les dépendances manquantes si requirements.txt existe
 if (Test-Path -Path ".\requirements.txt") {
     pip install --upgrade pip
     pip install -r requirements.txt
-    Write-Output "Dépendances installées depuis requirements.txt"
+    Write-Output "Dépendances mises à jour depuis requirements.txt"
 } else {
-    Write-Output "Fichier requirements.txt introuvable, installe pyautogui et pygetwindow manuellement."
+    Write-Output "Fichier requirements.txt introuvable, installation manuelle nécessaire."
 }
 
 # Ajoute un .gitignore dans dataset
