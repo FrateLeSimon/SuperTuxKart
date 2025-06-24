@@ -1,4 +1,5 @@
 # Étude 1 : *How Forza’s Drivatar Actually Works*
+*(Tommy Thompson, 2021)*
 
 ## Introduction
 
