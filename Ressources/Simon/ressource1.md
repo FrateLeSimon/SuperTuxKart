@@ -1,17 +1,80 @@
-## MEGA-DAgger: Imitation Learning with Multiple Imperfect Experts
+# MEGA-DAgger: Imitation Learning with Multiple Imperfect Experts
+## MEGA-DAgger : Apprentissage par imitation avec plusieurs experts imparfaits
 
-MEGA-DAgger is an imitation learning framework designed to leverage multiple imperfect experts in high-risk environments, such as autonomous driving. The method addresses key limitations of traditional approaches like DAgger and HG-DAgger, which assume access to a single, reliable expert. In practice, expert demonstrations are often noisy, inconsistent, or suboptimal.
+MEGA-DAgger est une méthode d'apprentissage par imitation conçue pour :
 
-The goal of MEGA-DAgger is to learn a policy that can match—or outperform—the best available experts, while minimizing risky behavior. To achieve this, the method introduces three core mechanisms: safety-based data filtering, expert action conflict resolution, and dynamic expert selection.
+- exploiter **plusieurs experts imparfaits** dans des environnements à haut risque (ex. : conduite autonome),
+- surpasser les limites des méthodes classiques comme **DAgger** et **HG-DAgger**, qui supposent un expert unique et fiable.
 
-The **first mechanism**, filtering, relies on Control Barrier Functions (CBFs) to evaluate the safety of demonstrations. If an expert performs an unsafe maneuver (e.g., too close to an obstacle, excessive speed), the demonstration is truncated and excluded from the training dataset. This prevents unsafe transitions from contaminating the learning process.
+### Objectif
 
-The **second mechanism** resolves action conflicts between experts. At a given time step, multiple experts may propose different actions. MEGA-DAgger compares the current observation (e.g., LiDAR scan) to past states using cosine similarity. It then selects the most appropriate action using a composite score that balances safety (CBF-based) and efficiency (progress toward the goal).
+Apprendre une **politique de décision** qui :
 
-The **third mechanism** is a dynamic expert selection strategy. At each iteration, MEGA-DAgger identifies which expert performs best under current environmental conditions. The choice may vary depending on track layout, traffic density, or noise. This adaptive strategy makes it possible to extract complementary strengths from different experts rather than averaging their behaviors.
+- égalise au minimum les meilleurs experts** disponibles,
+- tout en **minimisant les comportements risqués**.
 
-The authors evaluate MEGA-DAgger in a realistic racing simulator (f1tenth-gym), using neural-network-based agents trained on raw LiDAR data. Experimental results show that MEGA-DAgger significantly outperforms baseline methods such as HG-DAgger across several metrics: collision rate, successful lap completions, average speed, and robustness. In some cases, the learned policy even exceeds the performance of individual experts, demonstrating intelligent behavior aggregation.
+---
 
-The method is also validated on a real F1TENTH physical robot, confirming its applicability beyond simulation. The paper concludes by suggesting future extensions, such as learning expert trust scores automatically or integrating human experts in the loop.
+### Mécanismes clés de MEGA-DAgger
 
-In summary, MEGA-DAgger is a robust and scalable solution for imitation learning in uncertain environments. By intelligently aggregating demonstrations from diverse and imperfect sources, it enables high-performing, safe, and generalizable autonomous agents—without requiring explicit reward engineering.
+1. **Filtrage basé sur la sécurité**
+   - Utilise les **Control Barrier Functions (CBFs)** pour vérifier si une démonstration est sécurisée.
+   - Si un expert agit dangereusement (proximité d’obstacle, vitesse excessive), la donnée est **tronqué et exclu** du dataset.
+   - Ainsi on évite d’apprendre sur des transitions non sûres.
+
+2. **Résolution des conflits entre experts**
+   - Plusieurs experts peuvent proposer des actions différentes à un même instant.
+   - MEGA-DAgger compare l’état courant (ex. : scan LiDAR) aux états passés (**similarité cosinus**).
+   - Sélection de l’action selon un **score** :
+     - sécurité (via CBF),
+     - progression vers l’objectif.
+
+3. **Sélection dynamique de l’expert**
+   - À chaque itération, l’algorithme identifie l’expert **le plus adapté au contexte** :
+     - configuration de piste,
+     - trafic,
+     - bruit, etc.
+   - Permet d’exploiter les **forces complémentaires** sans lisser les comportements.
+
+---
+
+### Expérimentation
+
+- **Environnement** : simulateur réaliste *f1tenth-gym* (une voiture simulée sur une piste).
+- **Agents** : réseaux de neurones entraînés sur données LiDAR brutes.
+- **Comparaison** : méthodes de référence (HG-DAgger, etc.).
+
+#### Résultats :
+- MEGA-DAgger **dépasse les autres méthodes** sur :
+  - le taux de collisions,
+  - le nombre de tours complétés,
+  - la vitesse moyenne,
+  - la robustesse.
+- Dans certains cas, la politique apprise **fait mieux que tous les experts pris individuellement**.
+
+---
+
+### Validation réelle
+
+- Tests réussis sur un robot **F1TENTH physique**, prouvant la validité au-delà de la simulation.
+
+---
+
+### Perspectives
+
+- Apprentissage automatisé des **niveaux de confiance envers chaque expert**.
+- Intégration d’**experts humains dans la boucle**.
+- Généralisation vers d’autres domaines critiques où les démonstrations imparfaites sont la norme.
+
+---
+
+### Conclusion
+
+MEGA-DAgger propose une **approche robuste, sûre et évolutive** d’apprentissage par imitation :
+
+- adaptée aux **situations réelles complexes**,
+- capable d’agréger des comportements **imparfaits mais complémentaires**,
+- sans avoir besoin de **fonction de récompense explicite**.
+
+Une avancée prometteuse pour l’IA embarquée dans des environnements incertains et interactifs.
+
