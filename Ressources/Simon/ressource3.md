@@ -1,12 +1,70 @@
 # Hierarchical Imitation Learning of Team Behavior from Heterogeneous Demonstrations
+## DTIL : Apprentissage par imitation hiérarchique du comportement d'équipe à partir de démonstrations hétérogènes
 
-This work introduces DTIL (Deep Team Imitation Learner), a hierarchical multi-agent imitation learning framework designed to learn team behavior from heterogeneous and partially observable demonstrations. Unlike existing multi-agent imitation learning (MAIL) methods, which typically assume homogeneous behavior across agents and demonstrations, DTIL explicitly models the diversity and suboptimality of real-world team behaviors.
+Ce travail présente **DTIL (Deep Team Imitation Learner)**, un cadre d’apprentissage par imitation multi-agent **hiérarchique**, conçu pour apprendre le comportement d’équipe à partir de démonstrations **hétérogènes** et **partiellement observables**.
 
-DTIL leverages a hierarchical structure for each agent, consisting of a high-level policy that selects discrete subtasks and a low-level policy that executes actions within those subtasks. The learning process follows an expectation-maximization (EM) procedure: in the E-step, latent subtask labels are inferred from demonstrations; in the M-step, both policy levels are updated using a distribution-matching approach, namely IQLearn, which avoids adversarial training and ensures scalability.
+Contrairement aux approches classiques d’apprentissage par imitation multi-agent (MAIL), qui supposent un comportement homogène entre les agents et les données, DTIL modélise explicitement :
 
-The method is grounded in a formal extension of the occupancy measure matching framework to multi-agent and partially observable settings. Theoretical results guarantee convergence and one-to-one correspondence between occupancy distributions and hierarchical policies, ensuring consistency even under partial supervision.
+- la **diversité** des comportements d’équipe,
+- leur **sous-optimalité potentielle**,
+- et les limites de l’observation partielle.
 
-DTIL is evaluated in a variety of cooperative domains—such as Multi-Jobs, Movers and Flood, and SMACv2 (StarCraft II micromanagement scenarios)—and demonstrates clear advantages over existing baselines including behavior cloning, MA-GAIL, and MA-OptionGAIL. The approach proves particularly effective in capturing multimodal strategies and generalizing from imperfect, unlabeled demonstrations. Notably, DTIL is capable of learning meaningful team coordination even with only 20% of subtask labels provided during training.
+---
 
-In summary, DTIL offers a robust and interpretable framework for learning complex, multimodal team behaviors in realistic, partially observable environments. It addresses critical limitations of prior MAIL approaches and sets a foundation for future research in team modeling, imitation-based coaching, and real-world multi-agent systems.
+### Structure hiérarchique
+
+Chaque agent est modélisé par deux niveaux de politique :
+
+1. **Politique haut niveau** :
+   - sélectionne des **sous-tâches discrètes** (ex. : défendre, avancer, couvrir un coéquipier).
+2. **Politique bas niveau** :
+   - exécute des **actions concrètes** au sein de la sous-tâche (ex. : se déplacer, tirer, se positionner).
+
+L’apprentissage suit une procédure **Expectation-Maximization (EM)** :
+- **E-step** : infère les sous-tâches latentes à partir des démonstrations.
+- **M-step** : entraîne les deux politiques via **IQLearn**, une méthode d'apprentissage non-adversariale et scalable basée sur la correspondance des distributions d’occupation.
+
+---
+
+### Cadre théorique
+
+- L’approche repose sur une **extension formelle du matching des mesures d’occupation** aux environnements **partiellement observables** et **multi-agents**.
+- Des garanties théoriques assurent :
+  - la **convergence** du processus,
+  - et une **correspondance univoque** entre politiques hiérarchiques et distributions d’occupation.
+- Cela garantit la cohérence de l’apprentissage, même avec un **étiquetage partiel**.
+
+---
+
+### Évaluations expérimentales
+
+DTIL est testé sur plusieurs environnements coopératifs :
+
+- **Multi-Jobs** (MJ-2, MJ-3) : agents avec tâches parallèles,
+- **Movers and Flood** : navigation et coordination basées sur règles discrètes,
+- **SMACv2** (*StarCraft II micromanagement*) : environnements complexes de contrôle d’escouades.
+
+---
+
+### Résultats
+
+- DTIL **dépasse** les méthodes de référence :
+  - **Behavior Cloning**, **MA-GAIL**, **MA-OptionGAIL**, etc.
+- L’approche est particulièrement efficace pour :
+  - capturer des **stratégies multimodales**,
+  - **généraliser à partir de démonstrations imparfaites et non étiquetées**.
+- Même avec **seulement 20 % de sous-tâches annotées**, DTIL apprend une coordination d’équipe efficace.
+
+---
+
+### Conclusion
+
+- DTIL propose une solution **robuste, interprétable et scalable** pour l’apprentissage du **comportement collectif**.
+- Il surmonte les limites des approches MAIL traditionnelles :
+  - en s’adaptant aux **données imparfaites**,
+  - et en intégrant les dynamiques réelles d’une équipe.
+- Ce travail ouvre la voie à :
+  - la **modélisation d’équipe automatisée**,
+  - la **formation assistée par IA**,
+  - et l’application à des systèmes **multi-agents en conditions réelles**.
 
