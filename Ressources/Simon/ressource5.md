@@ -1,56 +1,58 @@
-# Image-Based Video Game Asset Generation and Evaluation Using Deep Learning: A Systematic Review
-## Génération et évaluation d’assets visuels pour jeux vidéo via Deep Learning : une revue systématique
+# Imitation Learning at All Levels of Game AI
+## Apprentissage par imitation à tous les niveaux de l’IA dans les jeux vidéo
 
-Cet article propose une **revue systématique** des techniques de deep learning appliquées à la **génération et à l’évaluation d’assets visuels** dans les jeux vidéo. L’étude couvre **99 publications évaluées par les pairs entre 2016 et 2023** et fournit une analyse structurée des méthodes, des tendances, des types de contenus visés, et des pratiques d’évaluation dans ce domaine émergent.
-
----
-
-### Techniques analysées
-
-- **GANs (Generative Adversarial Networks)** : modèle dominant tout au long de la période.
-- **Diffusion Models (DMs)** : forte croissance d’intérêt depuis 2022.
-- Ces modèles sont utilisés pour générer automatiquement des contenus graphiques variés.
+Ce travail de **Thurau, Sagerer et Bauckhage** propose un cadre complet d’**apprentissage par imitation** pour des agents artificiels dans les jeux vidéo, en prenant **Quake II** comme étude de cas. L'approche repose sur l'idée que les comportements humains dans les jeux émergent de **processus cognitifs hiérarchisés**. Le modèle proposé imite les **comportements stratégiques, tactiques et réactifs** à partir de parties enregistrées de joueurs humains.
 
 ---
 
-### Types d’assets ciblés
+### Objectif
 
-- **Textures 2D/3D**
-- **Génération de niveaux et de cartes**
-- **Modélisation de visages et de personnages**
-- **Synthèse de typographies et de polices**
-- **Transfert de style**
-- Domaines moins explorés : **logos**, **interfaces utilisateur (UI)**, **icônes**.
+- Aller au-delà des IA classiques fondées sur des règles (ex. : A*, automates finis).
+- Utiliser les **démos de jeu** comme source riche de données comportementales (positions, vitesses, visée, objets ramassés, adversaires…).
+- Générer des comportements crédibles, cohérents et variés via apprentissage hiérarchique.
 
 ---
 
-### Méthodes d’évaluation
+### Architecture comportementale hiérarchique
 
-Les approches d’évaluation sont classées en trois grandes catégories :
+1. **Comportement stratégique** :
+   - Objectifs à long terme (ex. : contrôle de zones, navigation).
+   - Appris via **Neural Gas** + **champs de potentiel** + **traînées de phéromones**.
 
-1. **Objectifs** : FID, IS, PSNR
-2. **Perceptifs** : CLIP Score, SSIM, NIMA
-3. **Humains** : études utilisateurs, revues par des experts
+2. **Comportement tactique** :
+   - Décisions contextuelles (ex. : embuscade, changement d’arme).
+   - Modélisé avec une architecture **Mixture of Experts**.
 
---> Les auteurs soulignent l’importance des évaluations **subjectives et qualitatives**, surtout pour des contenus à usage **visuel et interactif**.
+3. **Comportement réactif** :
+   - Réactions locales immédiates (ex. : viser, esquiver, tirer).
+   - Acquis via des **cartes auto-organisatrices (SOM)** combinées à des **MLP spécialisés**.
 
 ---
 
-### Limites identifiées
+### Modélisation des mouvements
 
-- **Manque de jeux de données standards** pour entraîner et comparer les modèles.
-- **Problèmes de reproductibilité** des expériences.
-- **Peu d’attention portée à l’éthique** (ex. : provenance des images, droits d’auteur).
-- Appel à des **bonnes pratiques** : benchmarks ouverts, transparence, design centré utilisateur.
+- Pour reproduire les **mouvements réalistes des joueurs** :
+  - Analyse en composantes principales (**PCA**) sur les trajectoires.
+  - Extraction de **primitives de mouvement**.
+  - Génération d’actions fluides et probabilistes, y compris des actions complexes (saut, rocket-jump…).
+
+---
+
+### Contributions clés
+
+- Pipeline complet d’apprentissage à partir de démos **sans script manuel**.
+- Architecture cognitive multi-niveaux pour générer des comportements crédibles.
+- Intégration du **comportement** et de la **cinématique du mouvement**.
+- Validation expérimentale dans un jeu FPS compétitif, avec des agents au comportement proche de celui de vrais joueurs.
 
 ---
 
 ### Conclusion
 
-- Le deep learning joue un rôle croissant dans la **création automatisée d’assets** pour jeux vidéo.
-- Cette revue propose une **feuille de route** claire pour les travaux futurs :
-  - diversification des applications,
-  - standardisation des outils d’évaluation,
-  - adoption de pratiques **éthiques et responsables**.
+L’étude montre que l’apprentissage par imitation, lorsqu’il est couplé à un modèle cognitif hiérarchique, peut produire des agents :
+- **intelligents**, 
+- **naturels**, 
+- et **adaptatifs**.
 
-En somme, les **modèles génératifs profonds** permettent d’**accélérer et enrichir** la production graphique en jeu vidéo — à condition de relever les défis méthodologiques, qualitatifs et éthiques qui l’accompagnent.
+Les perspectives incluent l’unification des modules comportementaux dans un **agent cohérent unique**, capable de prendre des décisions robustes à tous les niveaux hiérarchiques.
+

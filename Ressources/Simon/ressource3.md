@@ -1,70 +1,61 @@
-# Hierarchical Imitation Learning of Team Behavior from Heterogeneous Demonstrations
-## DTIL : Apprentissage par imitation hiérarchique du comportement d'équipe à partir de démonstrations hétérogènes
+# Imitation Learning for Autonomous Agents in SuperTuxKart Ice Hockey
+## Apprentissage par imitation pour agents autonomes dans SuperTuxKart (mode hockey)
 
-Ce travail présente **DTIL (Deep Team Imitation Learner)**, un cadre d’apprentissage par imitation multi-agent **hiérarchique**, conçu pour apprendre le comportement d’équipe à partir de démonstrations **hétérogènes** et **partiellement observables**.
-
-Contrairement aux approches classiques d’apprentissage par imitation multi-agent (MAIL), qui supposent un comportement homogène entre les agents et les données, DTIL modélise explicitement :
-
-- la **diversité** des comportements d’équipe,
-- leur **sous-optimalité potentielle**,
-- et les limites de l’observation partielle.
+Cette étude explore l’usage de l’**apprentissage par imitation** dans le jeu vidéo *SuperTuxKart*, plus précisément dans son mode de jeu **hockey**. L’objectif est de former un agent autonome capable de reproduire le comportement d’un agent expert, **sans faire appel à des démonstrations humaines**.
 
 ---
 
-### Structure hiérarchique
+### Objectif
 
-Chaque agent est modélisé par deux niveaux de politique :
-
-1. **Politique haut niveau** :
-   - sélectionne des **sous-tâches discrètes** (ex. : défendre, avancer, couvrir un coéquipier).
-2. **Politique bas niveau** :
-   - exécute des **actions concrètes** au sein de la sous-tâche (ex. : se déplacer, tirer, se positionner).
-
-L’apprentissage suit une procédure **Expectation-Maximization (EM)** :
-- **E-step** : infère les sous-tâches latentes à partir des démonstrations.
-- **M-step** : entraîne les deux politiques via **IQLearn**, une méthode d'apprentissage non-adversariale et scalable basée sur la correspondance des distributions d’occupation.
+- Apprendre un comportement réaliste à partir d’un **agent IA performant** déjà intégré au jeu.
+- Reproduire les décisions de l’agent expert à partir des états du jeu.
 
 ---
 
-### Cadre théorique
+### Construction du dataset
 
-- L’approche repose sur une **extension formelle du matching des mesures d’occupation** aux environnements **partiellement observables** et **multi-agents**.
-- Des garanties théoriques assurent :
-  - la **convergence** du processus,
-  - et une **correspondance univoque** entre politiques hiérarchiques et distributions d’occupation.
-- Cela garantit la cohérence de l’apprentissage, même avec un **étiquetage partiel**.
-
----
-
-### Évaluations expérimentales
-
-DTIL est testé sur plusieurs environnements coopératifs :
-
-- **Multi-Jobs** (MJ-2, MJ-3) : agents avec tâches parallèles,
-- **Movers and Flood** : navigation et coordination basées sur règles discrètes,
-- **SMACv2** (*StarCraft II micromanagement*) : environnements complexes de contrôle d’escouades.
+- L’agent **expert sélectionné** est *jurgen* (un agent IA performant déjà intégré au jeu SuperTuxKart dans le mode hockey), choisi pour ses bonnes performances (buts marqués).
+- À chaque étape :
+  - extraction des **états du jeu** (positions, vitesses, angles),
+  - association avec les **actions correspondantes** (accélération, direction, freinage).
+- Les données sont transformées en **vecteurs de caractéristiques**.
+- Entraînement d’un **réseau de neurones entièrement connecté** pour imiter les décisions de l’expert.
 
 ---
 
-### Résultats
+### Évaluation de DAgger
 
-- DTIL **dépasse** les méthodes de référence :
-  - **Behavior Cloning**, **MA-GAIL**, **MA-OptionGAIL**, etc.
-- L’approche est particulièrement efficace pour :
-  - capturer des **stratégies multimodales**,
-  - **généraliser à partir de démonstrations imparfaites et non étiquetées**.
-- Même avec **seulement 20 % de sous-tâches annotées**, DTIL apprend une coordination d’équipe efficace.
+- DAgger (Dataset Aggregation) est également testé :
+  - L’agent imitateur joue **en autonomie**,
+  - L’expert est sollicité pour corriger ses actions → enrichissement du dataset.
+- Dans ce contexte, **DAgger est moins performant** que l’apprentissage supervisé direct.
+  - Raisons : **manque de diversité** des situations explorées, **faible généralisation**.
+
+---
+
+### Comparaison des politiques apprises
+
+- Meilleures performances observées quand :
+  - **Deux agents imitateurs indépendants** jouent ensemble.
+  - Cela favorise la **diversité comportementale** et la complémentarité des décisions.
+- À l’inverse, les agents DAgger :
+  - obtiennent de **piètres résultats**,
+  - suggérant des **limites en exploration** et en capacité d’adaptation.
 
 ---
 
 ### Conclusion
 
-- DTIL propose une solution **robuste, interprétable et scalable** pour l’apprentissage du **comportement collectif**.
-- Il surmonte les limites des approches MAIL traditionnelles :
-  - en s’adaptant aux **données imparfaites**,
-  - et en intégrant les dynamiques réelles d’une équipe.
-- Ce travail ouvre la voie à :
-  - la **modélisation d’équipe automatisée**,
-  - la **formation assistée par IA**,
-  - et l’application à des systèmes **multi-agents en conditions réelles**.
+- L’apprentissage supervisé à partir d’un **expert artificiel** peut produire :
+  - des comportements crédibles,
+  - dans un **environnement de jeu dynamique et multi-agent**.
+- L’étude met en lumière les **limites de DAgger** quand les corrections sont :
+  - **peu variées**, 
+  - ou **faiblement informatives**.
+
+---
+
+### En résumé
+
+Cette expérimentation montre qu’un **apprentissage par imitation simple mais bien conçu**, même à partir d’un expert non humain, permet d’obtenir des agents autonomes **efficaces et crédibles**, à condition de maîtriser la **diversité des données** et la **qualité de l’exploration**.
 
