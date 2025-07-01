@@ -1,80 +1,65 @@
-# MEGA-DAgger: Imitation Learning with Multiple Imperfect Experts
-## MEGA-DAgger : Apprentissage par imitation avec plusieurs experts imparfaits
+# Imitation Learning for Agnostic Battery Charging: A DAGGER-Based Approach
+## Apprentissage par imitation pour la charge de batteries agnostique : une approche basée sur DAgger
 
-MEGA-DAgger est une méthode d'apprentissage par imitation conçue pour :
-
-- exploiter **plusieurs experts imparfaits** dans des environnements à haut risque (ex. : conduite autonome),
-- surpasser les limites des méthodes classiques comme **DAgger** et **HG-DAgger**, qui supposent un expert unique et fiable.
-
-### Objectif
-
-Apprendre une **politique de décision** qui :
-
-- égalise au minimum les meilleurs experts** disponibles,
-- tout en **minimisant les comportements risqués**.
+Cet article propose une application originale de l’algorithme DAgger (Dataset Aggregation) au domaine de la charge de batteries, dans un contexte agnostique, c’est-à-dire sans connaissance précise des paramètres système ni accès aux états internes de la batterie. L’objectif est d’apprendre une politique de contrôle sûre et efficace en imitant un expert de type MPC (Model Predictive Control), tout en restant compatible avec les contraintes du monde réel.
 
 ---
 
-### Mécanismes clés de MEGA-DAgger
+### Motivation
 
-1. **Filtrage basé sur la sécurité**
-   - Utilise les **Control Barrier Functions (CBFs)** pour vérifier si une démonstration est sécurisée.
-   - Si un expert agit dangereusement (proximité d’obstacle, vitesse excessive), la donnée est **tronqué et exclu** du dataset.
-   - Ainsi on évite d’apprendre sur des transitions non sûres.
-
-2. **Résolution des conflits entre experts**
-   - Plusieurs experts peuvent proposer des actions différentes à un même instant.
-   - MEGA-DAgger compare l’état courant (ex. : scan LiDAR) aux états passés (**similarité cosinus**).
-   - Sélection de l’action selon un **score** :
-     - sécurité (via CBF),
-     - progression vers l’objectif.
-
-3. **Sélection dynamique de l’expert**
-   - À chaque itération, l’algorithme identifie l’expert **le plus adapté au contexte** :
-     - configuration de piste,
-     - trafic,
-     - bruit, etc.
-   - Permet d’exploiter les **forces complémentaires** sans lisser les comportements.
+- Les contrôleurs MPC sont puissants mais supposent :
+  - des paramètres connus,
+  - une observabilité complète,
+  - des ressources de calcul élevées.
+- Ces hypothèses sont souvent irréalistes sur des batteries vieillissantes ou en systèmes embarqués.
+- Le clonage comportemental (behavioral cloning) est simple mais souffre de problèmes de généralisation.
 
 ---
 
-### Expérimentation
+### Méthodologie
 
-- **Environnement** : simulateur réaliste *f1tenth-gym* (une voiture simulée sur une piste).
-- **Agents** : réseaux de neurones entraînés sur données LiDAR brutes.
-- **Comparaison** : méthodes de référence (HG-DAgger, etc.).
+Les auteurs adaptent DAgger à un contexte de POMDP (Processus de décision markovien partiellement observable), en s’appuyant sur :
 
-#### Résultats :
-- MEGA-DAgger **dépasse les autres méthodes** sur :
-  - le taux de collisions,
-  - le nombre de tours complétés,
-  - la vitesse moyenne,
-  - la robustesse.
-- Dans certains cas, la politique apprise **fait mieux que tous les experts pris individuellement**.
+- une fenêtre d’historique des observations (tension, température, courant passé),
+- un apprentissage itératif où :
+  - on collecte à chaque itération les décisions de l’expert et de l’agent imitateur,
+  - on met à jour le modèle avec un Réseau de Neurones Récurrent (LSTM).
+
+Ce cadre ne nécessite pas d'accès aux états internes de la batterie, et reste robuste aux variations de paramètres (vieillissement, conditions extrêmes…).
 
 ---
 
-### Validation réelle
+### Protocole expérimental
 
-- Tests réussis sur un robot **F1TENTH physique**, prouvant la validité au-delà de la simulation.
-
----
-
-### Perspectives
-
-- Apprentissage automatisé des **niveaux de confiance envers chaque expert**.
-- Intégration d’**experts humains dans la boucle**.
-- Généralisation vers d’autres domaines critiques où les démonstrations imparfaites sont la norme.
+- Utilisation d’un simulateur électrochimique réaliste basé sur le modèle *Single Particle Model* couplé à une dynamique thermique.
+- L’expert est un contrôleur MPC avec connaissance complète du système.
+- L’agent est entraîné sur 15 itérations DAgger, en couvrant un large éventail de conditions batterie.
 
 ---
 
-### Conclusion
+### Résultats
 
-MEGA-DAgger propose une **approche robuste, sûre et évolutive** d’apprentissage par imitation :
+Comparaison avec un agent appris par clonage comportemental :
 
-- adaptée aux **situations réelles complexes**,
-- capable d’agréger des comportements **imparfaits mais complémentaires**,
-- sans avoir besoin de **fonction de récompense explicite**.
+| Critère                         | DAgger                    | Clonage comportemental       |
+|---------------------------------|----------------------------|-------------------------------|
+| Précision des actions           | meilleure                  | plus d’erreurs                |
+| Respect des contraintes thermiques | 0,08 K en moyenne         | 0,4 K en moyenne              |
+| Robustesse aux variations       | élevée                     | moins stable                  |
+| Suivi de tension et de charge   | équivalent                 | équivalent                    |
 
-Une avancée prometteuse pour l’IA embarquée dans des environnements incertains et interactifs.
+DAgger maintient mieux la sécurité tout en restant compétitif en performance globale.
 
+---
+
+### Contributions
+
+- Première application de DAgger à un problème de contrôle de batterie en conditions réalistes.
+- Proposition d’un cadre d’apprentissage par imitation dans un POMDP, sans supervision directe.
+- Validation sur 100 simulations aléatoires, montrant la généralisation et la robustesse de la méthode.
+
+---
+
+### Conclusion et perspectives
+
+L’approche DAgger adaptée au POMDP démontre la faisabilité d’un contrôle intelligent sans modèle explicite. Prochaine étape : prise en compte de l’incertitude, adaptation en temps réel, et tests sur batteries physiques réelles.
