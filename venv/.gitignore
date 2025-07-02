@@ -1,5 +1,0 @@
-# Ignore everything in venv (virtual environment)
-*
-# But not these!
-!.gitignore
-

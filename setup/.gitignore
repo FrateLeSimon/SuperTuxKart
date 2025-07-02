@@ -1,0 +1,4 @@
+venv/
+data/
+*.whl
+requirements_tmp.txt
