@@ -9,20 +9,30 @@ Bienvenue ! Ce dépôt est organisé pour séparer clairement :
 
 ---
 
+## Dépendances principales
+
+- Python 3.11 (**obligatoire**)
+- torch
+- numpy
+- gym
+- matplotlib
+- pystk (voir instructions spécifiques ci-dessous)
+
+La liste complète des dépendances et leurs versions exactes se trouve dans [setup/requirements.txt](setup/requirements.txt).
+
+**Remarque importante :**  
+L'installation de `pystk` nécessite une procédure particulière sous Windows/Python 3.11. Reporte-toi à la section "Installation de pystk" ci-dessous ou au [README du dossier setup](setup/README.md) pour plus de détails.
+
+---
+
 ## Installation du projet
 
-**1. Ouvre un terminal et place-toi dans le dossier du projet**
-
-**2. Va dans le dossier `setup/`**
+**1. Place-toi dans le dossier `setup/`**
 ```bash
 cd setup
 ```
 
-**3. Télécharge la wheel officielle de PySuperTuxKart (pystk) pour Windows 3.11**
-- [Lien direct](https://github.com/philkr/pystk/releases/download/v1.1.3/PySuperTuxKart-1.1.3-cp311-cp311-win_amd64.whl)
-- Place le fichier téléchargé dans le dossier `setup/`.
-
-**4. Lance le script d'installation automatique**
+**2. Installation recommandée**
 - **Windows** : double-clique sur `install_all.bat` ou lance :
   ```
   .\install_all.bat
@@ -31,28 +41,37 @@ cd setup
   ```bash
   bash install_all.sh
   ```
+> Ces scripts créent le venv dans `setup/venv/`, installent toutes les dépendances, activent le venv et relancent le setup automatiquement.
 
-> Ces scripts créent le venv dans `setup/venv/`, installent toutes les dépendances, activent le venv et relancent le setup automatiquement. Tu n'as rien d'autre à faire.
+**3. Installation manuelle (avancée)**
+- Tu peux lancer `setup_project.py` à la main si tu veux contrôler chaque étape.
 
-**5. (Optionnel) Installation manuelle avancée**
-- Tu peux lancer `setup_project.py` à la main si tu veux contrôler chaque étape (voir `setup/README.md`).
+---
 
-**6. Activation du venv pour utiliser le pipeline**
+## Activation de l'environnement virtuel
 - **Windows** :
   ```
   venv\Scripts\activate
   ```
+  ou double-clique sur `activate_venv.bat`
 - **Linux/Mac** :
   ```
   source venv/bin/activate
   ```
 
-**7. Lancer les scripts du pipeline**
-- Place-toi dans le dossier `/supertuxkart_il/` et utilise les scripts de collecte, entraînement, évaluation (voir le README de ce dossier).
-
 ---
 
-## Si l'installation automatique de pystk échoue (Windows 3.11)
+## Installation de pystk (Windows 3.11)
+
+Avant de lancer l'installation automatique, il est nécessaire de télécharger la wheel officielle de PySuperTuxKart (pystk) :
+
+1. Télécharge la wheel ici :
+   https://github.com/philkr/pystk/releases/download/v1.1.3/PySuperTuxKart-1.1.3-cp311-cp311-win_amd64.whl
+2. Place le fichier téléchargé dans le dossier `setup/` de ce projet.
+3. Lance le script d'installation automatique (`install_all.bat` ou `python setup_project.py`).
+   - Le script tentera d'installer la wheel automatiquement dans le bon environnement virtuel.
+
+**Si l'installation automatique échoue, fais-le manuellement :**
 
 1. Active le venv :
    ```powershell
@@ -67,16 +86,62 @@ Après cette étape, relance le script d'installation ou continue l'utilisation 
 
 ---
 
-## Test automatique du pipeline
+## Utilisation du pipeline
 
-> Après avoir terminé l'installation, tu peux vérifier que tout fonctionne avec :
+Après installation via `/setup/` :
 
+- **Collecte de données (par l'expert automatique)** :
+  ```bash
+  python data/collector.py --save_dir data/trajectories --episodes 50 --max_steps 1000 --noise_std 0.05 --track lighthouse
+  ```
+- **Entraînement de l'agent** :
+  ```bash
+  python training/train.py --data_dir data/trajectories --epochs 10 --batch_size 32 --lr 1e-3
+  ```
+- **Évaluation de l'agent** :
+  ```bash
+  python evaluation/eval.py --model_path imitation_agent.pth --episodes 5 --max_steps 1000 --track lighthouse
+  ```
+
+> Place-toi dans le dossier `/supertuxkart_il/` pour utiliser ces scripts.
+
+Pour tester automatiquement tout le pipeline (installation, collecte, entraînement, évaluation) :
+
+Active d'abord le venv :
+- **Windows** :
+  ```
+  venv\Scripts\activate
+  ```
+- **Linux/Mac** :
+  ```
+  source venv/bin/activate
+  ```
+
+Puis lance le test :
 ```bash
 cd setup
 python test_pipeline.py
 ```
 
-Le script vérifie pystk, collecte un mini-dataset, entraîne et évalue l'agent, puis nettoie tout. Si tout passe, l'installation et le pipeline sont OK !
+---
+
+## Structure du code source
+
+- `agents/` : agents d'imitation (CNN+MLP)
+- `baseline/` : contrôleur expert heuristique
+- `data/` : collecte de trajectoires
+- `environments/` : wrapper Gym pour SuperTuxKart
+- `evaluation/` : scripts d'évaluation
+- `training/` : scripts d'entraînement
+- `utils/` : utilitaires (dataset, etc.)
+
+---
+
+## Compatibilité et remarques
+- Python 3.11 obligatoire (pas 3.12+)
+- SuperTuxKart doit être installé sur ta machine
+- L'installation et la gestion du venv se font dans `/setup/`.
+- Pour toute ressource, doc, ou asset, voir `/ressources/`.
 
 ---
 
@@ -88,6 +153,4 @@ Le script vérifie pystk, collecte un mini-dataset, entraîne et évalue l'agent
 /ressources/      → assets, wheels, documentation, notes, etc.
 ```
 
----
-
-Pour toute question, consulte le README détaillé dans `/setup/` ou `/supertuxkart_il/`. 
+Pour toute question, consulte ce README ou les dossiers `/setup/` et `/supertuxkart_il/` pour plus de détails. 
