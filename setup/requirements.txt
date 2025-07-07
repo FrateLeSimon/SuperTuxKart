@@ -3,3 +3,4 @@ numpy
 gym
 matplotlib
 pystk
+pynput

@@ -94,9 +94,17 @@ Après installation via `/setup/` :
   ```bash
   python data/collector.py --save_dir data/trajectories --episodes 50 --max_steps 1000 --noise_std 0.05 --track lighthouse
   ```
+- **Collecte de données (par un humain)** :
+  ```bash
+  python data/human_collector.py --save_dir data/human_trajectories --episodes 1 --max_steps 1000 --track lighthouse
+  ```
+  > Contrôle au clavier : flèches (direction/accélération/frein), shift (drift). Les données sont enregistrées automatiquement à chaque frame.
+
 - **Entraînement de l'agent** :
   ```bash
   python training/train.py --data_dir data/trajectories --epochs 10 --batch_size 32 --lr 1e-3
+  # ou pour entraîner sur tes propres parties :
+  python training/train.py --data_dir data/human_trajectories --epochs 10 --batch_size 32 --lr 1e-3
   ```
 - **Évaluation de l'agent** :
   ```bash
@@ -122,6 +130,78 @@ Puis lance le test :
 cd setup
 python test_pipeline.py
 ```
+
+---
+
+## Collecte de trajectoires humaines (tuto)
+
+Tu veux que l'IA t'imite ? Voici comment enregistrer tes propres parties :
+
+1. **Active le venv**
+   - Windows :
+     ```
+     venv\Scripts\activate
+     ```
+   - Linux/Mac :
+     ```
+     source venv/bin/activate
+     ```
+2. **Place-toi dans le dossier du code source**
+   ```bash
+   cd supertuxkart_il
+   ```
+3. **Lance la collecte**
+   ```bash
+   python data/human_collector.py --save_dir data/human_trajectories --episodes 1 --max_steps 1000 --track lighthouse
+   ```
+   - Contrôle au clavier : ZQSD (direction/accélération/frein), espace (drift)
+   - Les données sont enregistrées automatiquement à chaque frame dans `data/human_trajectories/`
+   - Tu peux relancer pour enregistrer plusieurs parties (elles seront numérotées)
+
+4. **Entraîne l'IA sur tes propres données**
+   ```bash
+   python training/train.py --data_dir data/human_trajectories --epochs 10 --batch_size 32 --lr 1e-3
+   ```
+
+5. **Évalue l'agent comme d'habitude**
+   ```bash
+   python evaluation/eval.py --model_path imitation_agent.pth --episodes 5 --max_steps 1000 --track lighthouse
+   ```
+
+**Astuce :** Tu peux mélanger des données humaines et automatiques dans le même dossier pour entraîner un agent hybride.
+
+---
+
+### Comment fonctionne la collecte humaine (pour les développeurs)
+
+Le script `human_collector.py` permet d'enregistrer des trajectoires de jeu contrôlées par un humain, pour entraîner l'IA à imiter un joueur réel.
+
+- **Initialisation** : le script utilise l'environnement `SimplePyTux` (wrapper Gym autour de SuperTuxKart via pystk).
+- **Capture des entrées** : la librairie `pynput` écoute les touches du clavier en temps réel. Le mapping est :
+  - Z = accélérer
+  - S = freiner
+  - Q = gauche
+  - D = droite
+  - Espace = drift
+- **À chaque frame** :
+  - Le script lit les touches pressées et les convertit en action `[steer, acc, brake, drift]`.
+  - Il applique cette action dans l'environnement et récupère l'état du jeu (image, vitesse, rotation).
+  - Il sauvegarde l'état et l'action dans un fichier `.pt` dans un dossier dédié à l'épisode.
+- **Format des données** :
+  ```python
+  {
+      'state': {
+          'image': ...,
+          'velocity': ...,
+          'rotation': ...
+      },
+      'action': np.array([steer, acc, brake, drift], dtype=np.float32)
+  }
+  ```
+- **Compatibilité** : ce format est identique à celui de la collecte automatique (expert), donc l'IA peut s'entraîner sur des données humaines, automatiques, ou mixtes sans rien changer au pipeline.
+- **Extensible** : le mapping clavier peut être modifié facilement, et on peut ajouter la prise en charge d'autres périphériques si besoin.
+
+Ce script rend l'imitation learning humain simple, robuste et totalement intégré au projet.
 
 ---
 
