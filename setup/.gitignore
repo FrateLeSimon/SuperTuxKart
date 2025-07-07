@@ -2,3 +2,5 @@ venv/
 data/
 *.whl
 requirements_tmp.txt
+/venv
+venv
