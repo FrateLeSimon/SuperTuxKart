@@ -12,6 +12,8 @@ from threading import Thread, Lock
 import matplotlib.pyplot as plt
 from collections import deque
 import logging
+import json
+from pathlib import Path
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -144,93 +146,172 @@ class GameWindowManager:
             return None
 
 class DataCollector:
-    """Collecteur de données pour les actions du joueur."""
+    """Collecteur de données optimisé pour les actions du joueur."""
     
     def __init__(self):
         self.session_dir = None
         self.labels_file = None
         self.frame_count = 0
+        self.performance_monitor = PerformanceMonitor()
+        self.last_save_frame = 0
     
     def setup_session(self):
         """Configure le répertoire de session et les fichiers."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.session_dir = f"dataset/keyboard_session_{timestamp}"
-        images_dir = os.path.join(self.session_dir, "images")
-        os.makedirs(images_dir, exist_ok=True)
+        self.session_dir = Path(f"dataset/keyboard_session_{timestamp}")
+        images_dir = self.session_dir / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
         
-        labels_path = os.path.join(self.session_dir, "labels.csv")
-        self.labels_file = open(labels_path, "w")
+        labels_path = self.session_dir / "labels.csv"
+        self.labels_file = open(labels_path, "w", encoding='utf-8')
         
-        header = ["image"] + tracked_keys
+        header = ["image", "timestamp"] + tracked_keys + ["fps"]
         self.labels_file.write(",".join(header) + "\n")
+        
+        # Sauvegarder la configuration de session
+        session_config = {
+            "window_config": {
+                "left": WINDOW_FIXED_LEFT,
+                "top": WINDOW_FIXED_TOP,
+                "width": WINDOW_WIDTH,
+                "height": WINDOW_HEIGHT
+            },
+            "capture_config": {
+                "interval": CAPTURE_INTERVAL,
+                "jpeg_quality": JPEG_QUALITY,
+                "tracked_keys": tracked_keys
+            },
+            "timestamp": timestamp
+        }
+        
+        with open(self.session_dir / "session_config.json", "w", encoding='utf-8') as f:
+            json.dump(session_config, f, indent=2)
         
         logger.info(f"Session créée : {self.session_dir}")
         return images_dir
     
     def capture_frame_and_input(self, game_window, images_dir):
-        """Capture une frame et enregistre les inputs."""
-        bbox = (game_window.left, game_window.top, game_window.width, game_window.height)
-        screenshot = pyautogui.screenshot(region=bbox)
-        frame = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
-        
-        img_name = f"frame_{self.frame_count:06d}.jpg"
-        img_path = os.path.join(images_dir, img_name)
-        cv2.imwrite(img_path, frame)
-        
-        # Thread-safe access to pressed_keys
-        with data_lock:
-            current_pressed = [k for k in tracked_keys if keyboard.is_pressed(k)]
-            pressed_keys[:] = current_pressed  # Update global list
+        """Capture optimisée d'une frame et enregistrement des inputs."""
+        try:
+            # Mesure du temps de performance
+            self.performance_monitor.update_frame_time()
             
-            # Enregistrement des timestamps
-            current_time = time.time() - start_time
-            if "z" in current_pressed:
-                acceleration_data.append(current_time)
-            if "s" in current_pressed:
-                braking_data.append(current_time)
-            if "shift" in current_pressed:
-                drifting_data.append(current_time)
-        
-        # Écriture CSV
-        row = [img_name] + [str(int(k in current_pressed)) for k in tracked_keys]
-        self.labels_file.write(",".join(row) + "\n")
-        self.labels_file.flush()
-        
-        self.frame_count += 1
+            # Capture d'écran optimisée
+            bbox = (game_window.left, game_window.top, game_window.width, game_window.height)
+            screenshot = pyautogui.screenshot(region=bbox)
+            frame = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+            
+            # Nom de fichier avec timestamp précis
+            current_time = time.time()
+            img_name = f"frame_{self.frame_count:06d}_{int(current_time * 1000)}.jpg"
+            img_path = images_dir / img_name
+            
+            # Sauvegarde optimisée avec qualité JPEG
+            cv2.imwrite(str(img_path), frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
+            
+            # Thread-safe access to pressed_keys
+            with data_lock:
+                current_pressed = [k for k in tracked_keys if keyboard.is_pressed(k)]
+                pressed_keys[:] = current_pressed  # Update global list
+                
+                # Enregistrement des timestamps avec plus de précision
+                relative_time = current_time - start_time
+                if "z" in current_pressed:
+                    acceleration_data.append(relative_time)
+                if "s" in current_pressed:
+                    braking_data.append(relative_time)
+                if "shift" in current_pressed:
+                    drifting_data.append(relative_time)
+            
+            # Écriture CSV avec informations étendues
+            fps = self.performance_monitor.get_average_fps()
+            row = [
+                img_name, 
+                f"{relative_time:.3f}",
+                *[str(int(k in current_pressed)) for k in tracked_keys],
+                f"{fps:.2f}"
+            ]
+            self.labels_file.write(",".join(row) + "\n")
+            
+            # Sauvegarde automatique périodique
+            if self.frame_count - self.last_save_frame >= AUTO_SAVE_INTERVAL:
+                self.labels_file.flush()
+                self.last_save_frame = self.frame_count
+                logger.debug(f"Sauvegarde automatique à la frame {self.frame_count}")
+            
+            self.frame_count += 1
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la capture de frame {self.frame_count}: {e}")
+            self.performance_monitor.dropped_frames += 1
+    
+    def get_session_stats(self):
+        """Retourne les statistiques de la session."""
+        stats = self.performance_monitor.get_stats()
+        stats.update({
+            "session_dir": str(self.session_dir) if self.session_dir else None,
+            "total_actions": {
+                "acceleration": len(acceleration_data),
+                "braking": len(braking_data),
+                "drifting": len(drifting_data)
+            }
+        })
+        return stats
     
     def cleanup(self):
-        """Nettoie les ressources."""
+        """Nettoie les ressources et sauvegarde les statistiques."""
         if self.labels_file:
             self.labels_file.close()
+        
+        if self.session_dir:
+            # Sauvegarder les statistiques de session
+            stats = self.get_session_stats()
+            with open(self.session_dir / "session_stats.json", "w", encoding='utf-8') as f:
+                json.dump(stats, f, indent=2)
+            
+            logger.info(f"Session terminée avec {self.frame_count} frames capturées")
+            logger.info(f"FPS moyen: {stats['fps']}")
+        
         return self.session_dir
 
-# Fonction pour mettre à jour l'interface
+# Fonction pour mettre à jour l'interface de manière optimisée
 def update_gui():
     """Met à jour l'interface utilisateur de manière optimisée."""
-    while True:
+    while not shutdown_event.is_set():
         try:
             with data_lock:
                 current_pressed = pressed_keys.copy()
+                # Obtenir les statistiques de performance si disponible
+                stats_text = f"Frames: {len(acceleration_data) + len(braking_data) + len(drifting_data)}"
             
             if capturing:
-                status_label.config(text="Enregistrement en cours", foreground="green")
+                status_label.config(text="🔴 Enregistrement en cours", foreground="green")
                 time_elapsed_label.config(text=f"Temps écoulé : {get_elapsed_time()}")
                 start_button.config(state="disabled")
                 stop_button.config(state="normal")
+                
+                # Afficher les statistiques en temps réel
+                stats_label.config(text=stats_text, foreground="#3498db")
             else:
-                status_label.config(text="En attente", foreground="red")
+                status_label.config(text="⏸️ En attente", foreground="red")
                 time_elapsed_label.config(text="Temps écoulé : 0 secondes")
                 start_button.config(state="normal")
                 stop_button.config(state="disabled")
+                
+                # Cacher les stats quand pas en capture
+                stats_label.config(text="", foreground="#7f8c8d")
             
             keys_text = ', '.join(current_pressed) if current_pressed else 'Aucune'
             keys_pressed_label.config(text=f"Touches pressées : {keys_text}")
             
             root.update_idletasks()
             time.sleep(GUI_UPDATE_INTERVAL)
+            
         except Exception as e:
             logger.error(f"Erreur dans update_gui: {e}")
             time.sleep(1)
+    
+    logger.info("Thread GUI arrêté proprement")
 
 # Fonction pour démarrer la capture
 def start_capture_gui():
@@ -344,21 +425,21 @@ def show_acceleration_graph(session_dir=None):
     except Exception as e:
         logger.error(f"Erreur lors de l'affichage du graphique : {e}")
 
-# Fonction pour créer l'interface utilisateur
+# Fonction pour créer l'interface utilisateur optimisée
 def create_gui():
     """Crée l'interface utilisateur avec un design amélioré et positionnement personnalisé."""
-    global root, status_label, time_elapsed_label, keys_pressed_label
+    global root, status_label, time_elapsed_label, keys_pressed_label, stats_label
     global start_button, stop_button
     
     root = tk.Tk()
-    root.title("SuperTuxKart - Capture d'Écran et Analyse")
+    root.title("SuperTuxKart - Capture d'Écran et Analyse [OPTIMISÉ]")
     
     # Configuration de la taille et position
     root.geometry(f"{GUI_WIDTH}x{GUI_HEIGHT}+{GUI_POSITION_X}+{GUI_POSITION_Y}")
     root.resizable(False, False)
     root.configure(bg="#2c3e50")
     
-    # Centrer la fenêtre si les positions ne sont pas spécifiées
+    # Optimisation : Éviter le centrage si pas nécessaire
     if GUI_POSITION_X == 0 and GUI_POSITION_Y == 0:
         root.update_idletasks()
         screen_width = root.winfo_screenwidth()
@@ -367,8 +448,8 @@ def create_gui():
         y = (screen_height - GUI_HEIGHT) // 2
         root.geometry(f"{GUI_WIDTH}x{GUI_HEIGHT}+{x}+{y}")
     
-    # Garder la fenêtre au-dessus des autres (optionnel)
-    # root.attributes('-topmost', True)
+    # Protocole de fermeture optimisé
+    root.protocol("WM_DELETE_WINDOW", on_closing)
     
     logger.info(f"Interface créée : {GUI_WIDTH}x{GUI_HEIGHT} à la position ({GUI_POSITION_X}, {GUI_POSITION_Y})")
 
@@ -418,7 +499,17 @@ def create_gui():
         fg="#f39c12",
         wraplength=600
     )
-    keys_pressed_label.pack(pady=15)
+    keys_pressed_label.pack(pady=10)
+    
+    # Statistiques de performance
+    stats_label = tk.Label(
+        root, 
+        text="", 
+        font=("Arial", 12), 
+        bg="#2c3e50", 
+        fg="#3498db"
+    )
+    stats_label.pack(pady=5)
 
     # Boutons avec disposition améliorée
     button_frame = tk.Frame(root, bg="#2c3e50")
@@ -467,7 +558,85 @@ def create_gui():
     )
     reposition_button.grid(row=2, column=0, columnspan=2, padx=10, pady=5)
 
+    # Bouton pour sauvegarder la configuration
+    save_config_button = ttk.Button(
+        button_frame, 
+        text="💾 Sauvegarder config", 
+        command=save_current_config,
+        width=20
+    )
+    save_config_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5)
+
     return root
+
+def on_closing():
+    """Gestionnaire de fermeture propre de l'application."""
+    global capturing
+    logger.info("Fermeture de l'application en cours...")
+    
+    if capturing:
+        with data_lock:
+            capturing = False
+        time.sleep(0.5)  # Laisser le temps aux threads de se terminer
+    
+    root.quit()
+    root.destroy()
+
+def save_current_config():
+    """Sauvegarde la configuration actuelle."""
+    config = {
+        "window": {
+            "left": WINDOW_FIXED_LEFT,
+            "top": WINDOW_FIXED_TOP,
+            "width": WINDOW_WIDTH,
+            "height": WINDOW_HEIGHT
+        },
+        "gui": {
+            "width": GUI_WIDTH,
+            "height": GUI_HEIGHT,
+            "x": GUI_POSITION_X,
+            "y": GUI_POSITION_Y
+        },
+        "capture": {
+            "interval": CAPTURE_INTERVAL,
+            "auto_position": AUTO_POSITION_ON_STARTUP
+        },
+        "last_updated": datetime.now().isoformat()
+    }
+    
+    try:
+        with open("config.json", "w", encoding='utf-8') as f:
+            json.dump(config, f, indent=2)
+        
+        # Popup de confirmation
+        popup = tk.Toplevel(root)
+        popup.title("Configuration sauvegardée")
+        popup.geometry("300x100")
+        popup.configure(bg="#27ae60")
+        popup.resizable(False, False)
+        
+        # Centrer la popup
+        popup.update_idletasks()
+        x = root.winfo_x() + (root.winfo_width() // 2) - (300 // 2)
+        y = root.winfo_y() + (root.winfo_height() // 2) - (100 // 2)
+        popup.geometry(f"300x100+{x}+{y}")
+        
+        message_label = tk.Label(
+            popup, 
+            text="✅ Configuration sauvegardée\navec succès dans config.json", 
+            font=("Arial", 11, "bold"), 
+            bg="#27ae60", 
+            fg="white",
+            justify="center"
+        )
+        message_label.pack(expand=True)
+        
+        # Fermer automatiquement après 2 secondes
+        popup.after(2000, popup.destroy)
+        logger.info("Configuration sauvegardée dans config.json")
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la sauvegarde de la configuration: {e}")
 
 def reposition_game_window():
     """Repositionne manuellement la fenêtre du jeu."""
