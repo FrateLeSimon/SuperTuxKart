@@ -8,15 +8,23 @@ import keyboard
 from datetime import datetime
 import tkinter as tk
 from tkinter import ttk
-from threading import Thread, Lock
+from threading import Thread, Lock, Event
 import matplotlib.pyplot as plt
 from collections import deque
 import logging
 import json
 from pathlib import Path
+import gc
 
 # Configuration du logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('capture.log'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # Configuration globale
@@ -28,7 +36,7 @@ GUI_UPDATE_INTERVAL = 0.1  # secondes
 WINDOW_FIXED_LEFT = 675     # Position X (600 pixels du bord gauche)
 WINDOW_FIXED_TOP = 0        # Position Y (0 pixels du bord haut)
 WINDOW_WIDTH = 1254         # Largeur souhaitée (optionnel)
-WINDOW_HEIGHT = 1029         # Hauteur souhaitée (optionnel)
+WINDOW_HEIGHT = 1029        # Hauteur souhaitée (optionnel)
 
 # Configuration pour le positionnement automatique
 AUTO_POSITION_ON_STARTUP = True    # Active le repositionnement automatique au démarrage
@@ -40,6 +48,14 @@ GUI_HEIGHT = 960
 GUI_POSITION_X = 10         # Position X de l'interface
 GUI_POSITION_Y = 10         # Position Y de l'interface
 
+# Configuration de performance
+JPEG_QUALITY = 85           # Qualité JPEG (0-100)
+AUTO_SAVE_INTERVAL = 100    # Sauvegarde auto tous les N frames
+MAX_DEQUE_SIZE = 10000      # Taille maximale des deques pour éviter la surcharge mémoire
+
+# Event global pour l'arrêt propre
+shutdown_event = Event()
+
 # Variables d'état avec thread safety
 capturing = False
 start_time = None
@@ -47,10 +63,10 @@ tracked_keys = ["s", "d", "space", "shift", "q", "z", "c", "v"]
 pressed_keys = []
 data_lock = Lock()
 
-# Utilisation de deque pour de meilleures performances
-acceleration_data = deque()
-braking_data = deque()
-drifting_data = deque()
+# Utilisation de deque pour de meilleures performances avec limite de taille
+acceleration_data = deque(maxlen=MAX_DEQUE_SIZE)
+braking_data = deque(maxlen=MAX_DEQUE_SIZE)
+drifting_data = deque(maxlen=MAX_DEQUE_SIZE)
 
 # Fonction pour calculer le temps écoulé
 def get_elapsed_time():
@@ -59,6 +75,40 @@ def get_elapsed_time():
         elapsed = int(time.time() - start_time)
         return f"{elapsed} secondes"
     return "0 secondes"
+
+class PerformanceMonitor:
+    """Moniteur de performance pour la capture."""
+    
+    def __init__(self):
+        self.frame_times = deque(maxlen=100)  # Garder les 100 derniers temps
+        self.last_frame_time = time.time()
+        self.dropped_frames = 0
+        self.total_frames = 0
+    
+    def update_frame_time(self):
+        """Met à jour le temps de frame."""
+        current_time = time.time()
+        if self.last_frame_time:
+            frame_time = current_time - self.last_frame_time
+            self.frame_times.append(frame_time)
+        self.last_frame_time = current_time
+        self.total_frames += 1
+    
+    def get_average_fps(self):
+        """Calcule le FPS moyen."""
+        if not self.frame_times:
+            return 0.0
+        avg_frame_time = sum(self.frame_times) / len(self.frame_times)
+        return 1.0 / avg_frame_time if avg_frame_time > 0 else 0.0
+    
+    def get_stats(self):
+        """Retourne les statistiques de performance."""
+        return {
+            "fps": self.get_average_fps(),
+            "total_frames": self.total_frames,
+            "dropped_frames": self.dropped_frames,
+            "efficiency": ((self.total_frames - self.dropped_frames) / self.total_frames * 100) if self.total_frames > 0 else 0
+        }
 
 class GameWindowManager:
     """Gestionnaire pour la fenêtre de jeu avec contrôle avancé."""
@@ -238,6 +288,8 @@ class DataCollector:
                 self.labels_file.flush()
                 self.last_save_frame = self.frame_count
                 logger.debug(f"Sauvegarde automatique à la frame {self.frame_count}")
+                # Libération de mémoire périodique
+                gc.collect()
             
             self.frame_count += 1
             
@@ -270,7 +322,7 @@ class DataCollector:
                 json.dump(stats, f, indent=2)
             
             logger.info(f"Session terminée avec {self.frame_count} frames capturées")
-            logger.info(f"FPS moyen: {stats['fps']}")
+            logger.info(f"FPS moyen: {stats['fps']:.2f}")
         
         return self.session_dir
 
@@ -282,7 +334,7 @@ def update_gui():
             with data_lock:
                 current_pressed = pressed_keys.copy()
                 # Obtenir les statistiques de performance si disponible
-                stats_text = f"Frames: {len(acceleration_data) + len(braking_data) + len(drifting_data)}"
+                stats_text = f"Actions: {len(acceleration_data) + len(braking_data) + len(drifting_data)}"
             
             if capturing:
                 status_label.config(text="🔴 Enregistrement en cours", foreground="green")
@@ -343,7 +395,7 @@ def start_capture():
     collector = DataCollector()
     
     try:
-        while True:
+        while not shutdown_event.is_set():
             if capturing:
                 try:
                     # Utiliser le gestionnaire de fenêtre optimisé
@@ -353,13 +405,13 @@ def start_capture():
                     images_dir = collector.setup_session()
                     
                     # Boucle de capture principale
-                    while capturing:
+                    while capturing and not shutdown_event.is_set():
                         collector.capture_frame_and_input(game_window, images_dir)
                         time.sleep(CAPTURE_INTERVAL)
                     
                     # Générer le graphique à la fin de la session
                     session_dir = collector.cleanup()
-                    if session_dir:
+                    if session_dir and not shutdown_event.is_set():
                         show_acceleration_graph(session_dir)
                 
                 except Exception as e:
@@ -373,6 +425,7 @@ def start_capture():
         logger.info("Interruption clavier détectée.")
     finally:
         collector.cleanup()
+        logger.info("Thread capture arrêté proprement")
 
 # Fonction pour afficher le graphique optimisée
 def show_acceleration_graph(session_dir=None):
@@ -432,7 +485,7 @@ def create_gui():
     global start_button, stop_button
     
     root = tk.Tk()
-    root.title("SuperTuxKart - Capture d'Écran et Analyse [OPTIMISÉ]")
+    root.title("SuperTuxKart - Capture d'Écran et Analyse")
     
     # Configuration de la taille et position
     root.geometry(f"{GUI_WIDTH}x{GUI_HEIGHT}+{GUI_POSITION_X}+{GUI_POSITION_Y}")
@@ -574,13 +627,19 @@ def on_closing():
     global capturing
     logger.info("Fermeture de l'application en cours...")
     
+    # Signaler l'arrêt à tous les threads
+    shutdown_event.set()
+    
     if capturing:
         with data_lock:
             capturing = False
         time.sleep(0.5)  # Laisser le temps aux threads de se terminer
     
-    root.quit()
-    root.destroy()
+    try:
+        root.quit()
+        root.destroy()
+    except Exception as e:
+        logger.error(f"Erreur lors de la fermeture: {e}")
 
 def save_current_config():
     """Sauvegarde la configuration actuelle."""
@@ -599,7 +658,9 @@ def save_current_config():
         },
         "capture": {
             "interval": CAPTURE_INTERVAL,
-            "auto_position": AUTO_POSITION_ON_STARTUP
+            "auto_position": AUTO_POSITION_ON_STARTUP,
+            "jpeg_quality": JPEG_QUALITY,
+            "auto_save_interval": AUTO_SAVE_INTERVAL
         },
         "last_updated": datetime.now().isoformat()
     }
@@ -838,9 +899,9 @@ def main():
         # Créer le tableau des instructions
         create_instructions_table(root)
         
-        # Démarrer les threads
-        gui_thread = Thread(target=update_gui, daemon=True)
-        capture_thread = Thread(target=start_capture, daemon=True)
+        # Démarrer les threads avec gestion d'arrêt propre
+        gui_thread = Thread(target=update_gui, daemon=True, name="GUI-Thread")
+        capture_thread = Thread(target=start_capture, daemon=True, name="Capture-Thread")
         
         gui_thread.start()
         capture_thread.start()
@@ -848,11 +909,16 @@ def main():
         logger.info("✅ Application démarrée avec succès")
         
         # Démarrer la boucle principale
-        root.mainloop()
+        try:
+            root.mainloop()
+        except KeyboardInterrupt:
+            logger.info("Interruption clavier détectée")
         
     except Exception as e:
         logger.error(f"❌ Erreur dans la fonction principale : {e}")
     finally:
+        # Arrêt propre
+        shutdown_event.set()
         logger.info("👋 Application fermée")
 
 if __name__ == "__main__":
